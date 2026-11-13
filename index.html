@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soldadura por haz de electrones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06080C;--ink:#F4F7FA;--mut:#9AA5B1;--cy:#46D6FF;--bl:#2F7BFF;--hot:#FF7A2E;--amb:#FFC24A;--ok:#5BE39A;--fd:'Space Grotesk',system-ui,sans-serif;--fb:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;overflow:hidden;font-family:var(--fb);color:var(--ink)}
+body.idle{cursor:none}
+#vp{position:fixed;inset:0;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1600px;height:900px;background:var(--bg);overflow:hidden;transform-origin:center}
+.s{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility 0s .8s}
+.s.on{opacity:1;visibility:visible;transition:opacity .8s ease}
+.s canvas.bg,.s video.bg,.s img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,8,12,.92) 0%,rgba(6,8,12,.65) 45%,rgba(6,8,12,.15) 100%)}
+.shadeB{position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,8,12,.95) 0%,rgba(6,8,12,.35) 55%,rgba(6,8,12,.1) 100%)}
+.box{position:absolute;left:100px;top:170px;width:820px}
+[data-at]{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .8s cubic-bezier(.2,.8,.2,1)}
+[data-at].go{opacity:1;transform:none}
+.kick{font:600 20px var(--fd);letter-spacing:.2em;text-transform:uppercase;color:var(--cy)}
+.h1{font:700 96px/1.0 var(--fd);letter-spacing:-.03em}
+.h2{font:700 72px/1.04 var(--fd);letter-spacing:-.025em}
+.huge{font:700 180px/.95 var(--fd);letter-spacing:-.05em}
+.lead{font:500 32px/1.3 var(--fb);color:#DCE3EA}
+.mut{color:var(--mut)}
+.cy{color:var(--cy)}.hot{color:var(--hot)}.amb{color:var(--amb)}.ok{color:var(--ok)}
+.chip{display:inline-flex;align-items:center;gap:12px;font:600 26px var(--fd);padding:14px 26px;border-radius:999px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.22);backdrop-filter:blur(6px)}
+.chip.cyb{border-color:var(--cy);color:var(--cy);background:rgba(70,214,255,.08)}
+.chip.hotb{border-color:var(--hot);color:var(--hot);background:rgba(255,122,46,.08)}
+.step{font:700 30px var(--fd);color:var(--cy);letter-spacing:.06em}
+.src{position:absolute;left:100px;bottom:34px;font:italic 500 14px var(--fb);color:rgba(255,255,255,.55)}
+/* UI */
+#logo{position:absolute;left:100px;top:44px;height:58px;z-index:20;opacity:.95}
+#who{position:absolute;right:100px;top:50px;z-index:20;display:flex;align-items:center;gap:12px;font:600 18px var(--fd);color:var(--ink);padding:10px 18px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);transition:opacity .4s}
+#who i{width:10px;height:10px;border-radius:50%;background:var(--cy);box-shadow:0 0 12px var(--cy)}
+#bar{position:absolute;left:0;right:0;bottom:0;height:6px;z-index:20;display:flex;gap:4px;padding:0 4px}
+#bar span{flex:1;background:rgba(255,255,255,.14);border-radius:3px;overflow:hidden;position:relative}
+#bar span b{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--bl),var(--cy))}
+#num{position:absolute;right:100px;bottom:28px;z-index:20;font:600 16px var(--fd);color:rgba(255,255,255,.6)}
+#pz{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:20;font:600 15px var(--fd);color:var(--amb);opacity:0;transition:opacity .3s}
+body.paused #pz{opacity:1}
+#start{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;background:rgba(6,8,12,.86);backdrop-filter:blur(8px)}
+#start h1{font:700 64px var(--fd);letter-spacing:-.02em;text-align:center}
+#start p{font:500 22px var(--fb);color:var(--mut);text-align:center;line-height:1.5}
+#start button{font:700 26px var(--fd);padding:20px 46px;border-radius:999px;border:0;background:var(--cy);color:#04131a;cursor:pointer;box-shadow:0 0 40px rgba(70,214,255,.45)}
+#start .row{display:flex;gap:14px}
+#start .ghost{background:transparent;color:var(--ink);border:1.5px solid rgba(255,255,255,.35);box-shadow:none}
+/* pregunta */
+.ring{position:relative;width:150px;height:150px}
+.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:700 64px var(--fd)}
+.q{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:34px;padding:0 140px;transition:opacity .6s,transform .7s}
+.q.hide{opacity:0;transform:translateY(-40px);pointer-events:none}
+.ans{position:absolute;inset:0;opacity:0;transition:opacity .8s}
+.ans.show{opacity:1}
+table.cmp{border-collapse:separate;border-spacing:0 10px;width:100%}
+table.cmp th{font:600 22px var(--fd);color:var(--mut);text-align:left;padding:0 22px}
+table.cmp th.e{color:var(--cy)}
+table.cmp td{font:600 27px var(--fd);padding:16px 22px;background:rgba(255,255,255,.05)}
+table.cmp td:first-child{border-radius:14px 0 0 14px;color:var(--mut);font-weight:500;font-size:24px}
+table.cmp td:last-child{border-radius:0 14px 14px 0}
+table.cmp td.e{background:rgba(70,214,255,.12);color:var(--cy)}
+.tile{display:grid;place-items:center;width:150px;height:150px;border-radius:24px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.18)}
+.tile b{font:700 64px var(--fd)}
+.tile span{font:500 17px var(--fb);color:var(--mut);margin-top:-18px}
+.apps{position:absolute;left:100px;right:100px;top:300px;display:grid;grid-template-columns:repeat(4,1fr);gap:26px}
+.app{padding:34px 30px;border-radius:26px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.12);transition:all .6s;min-height:380px}
+.app.hi{background:rgba(70,214,255,.12);border-color:var(--cy);transform:translateY(-14px);box-shadow:0 20px 60px rgba(70,214,255,.18)}
+.app svg{width:110px;height:110px}
+.app h3{font:700 36px var(--fd);margin-top:24px}
+.app p{font:500 22px/1.35 var(--fb);color:var(--mut);margin-top:10px}
+body.static *{transition:none!important}
+#rotate{display:none}
+@media (orientation:portrait) and (max-width:700px){#rotate{display:flex;position:fixed;inset:0;z-index:100;background:var(--bg);align-items:center;justify-content:center;padding:30px;text-align:center;font:600 20px var(--fd)}}
+</style>
+</head>
+<body class="paused">
+<div id="rotate">Gira el teléfono para ver la presentación</div>
+<div id="vp"><div id="stage">
+<img id="logo" src="assets/logo_uis_blanco.png" alt="UIS">
+<div id="who"><i></i><span id="whoT"></span></div>
+
+<!-- 1 -->
+<section class="s" data-who="J. Gabriel Franco" data-src="Video: Corpus Christi Army Depot, DVIDS (dominio público).">
+  <video class="bg" src="assets/v_detalle.mp4" muted loop playsinline preload="auto"></video><div class="shade"></div>
+  <div class="box" style="top:220px">
+    <div class="kick" data-at="0.2">Soldadura por haz de electrones · EBW</div>
+    <div class="h1" data-at="0.6" style="margin-top:22px">¿Y si pudiéramos soldar con <span class="cy">electrones</span>?</div>
+    <div class="lead" data-at="2" style="margin-top:34px">J. Gabriel Franco · Juan Fernando Sarmiento</div>
+    <div data-at="6" style="margin-top:46px"><span class="chip cyb">✋ Levanten la mano si creen que se puede</span></div>
+  </div>
+</section>
+
+<!-- 2 velocidad -->
+<section class="s" data-who="J. Gabriel Franco" data-anim="speed" data-src="Velocidad calculada para electrones acelerados a 150 kV.">
+  <canvas class="bg" width="1600" height="900"></canvas>
+  <div class="box" style="top:200px;width:1100px">
+    <div class="lead" data-at="0.2">¿Qué tan rápido va un electrón aquí?</div>
+    <div class="huge cy" data-at="0.8" style="margin-top:20px"><span id="spd">0</span><span style="font-size:60px;letter-spacing:0"> km/s</span></div>
+    <div class="h2" data-at="5.5" style="margin-top:22px">≈ 63 % de la velocidad de la luz</div>
+    <div data-at="8.5" style="margin-top:30px"><span class="chip">a 150 000 voltios</span></div>
+  </div>
+</section>
+
+<!-- 3 origen -->
+<section class="s" data-who="J. Gabriel Franco" data-src="Foto: U.S. Department of Energy, Wikimedia Commons (dominio público).">
+  <img class="bg" src="assets/historica.jpg" alt="" style="filter:grayscale(1) contrast(1.1) brightness(.75);object-position:60% 30%"><div class="shade"></div>
+  <div class="box">
+    <div class="kick" data-at="0.2">Origen</div>
+    <div class="huge" data-at="0.6" style="margin-top:16px">1957<span class="mut">–</span>58</div>
+    <div class="lead" data-at="2.5" style="margin-top:26px">Francia y Alemania</div>
+    <div class="h2" data-at="5" style="margin-top:18px">Nace para la <span class="amb">industria nuclear</span></div>
+  </div>
+</section>
+
+<!-- 4 calentar -->
+<section class="s" data-who="J. Gabriel Franco" data-anim="heat" data-src="Animación: emisión termoiónica en el cátodo del cañón.">
+  <canvas class="bg" width="1600" height="900"></canvas>
+  <div class="box" style="top:200px;width:620px">
+    <div class="step" data-at="0.2">1 / 3</div>
+    <div class="huge" data-at="0.5" style="font-size:150px">Calentar</div>
+    <div class="lead" data-at="2.5" style="margin-top:26px">Cátodo de tungsteno a más de <b class="hot">2 000 °C</b></div>
+    <div class="lead" data-at="7" style="margin-top:20px">Los electrones “hierven” y salen del metal</div>
+  </div>
+</section>
+
+<!-- 5 acelerar -->
+<section class="s" data-who="J. Gabriel Franco" data-anim="accel" data-src="Animación: aceleración entre cátodo y ánodo.">
+  <canvas class="bg" width="1600" height="900"></canvas>
+  <div class="box" style="top:170px;width:1400px">
+    <div class="step" data-at="0.2">2 / 3</div>
+    <div class="huge" data-at="0.5" style="font-size:150px">Acelerar</div>
+  </div>
+  <div style="position:absolute;left:100px;top:620px" data-at="2"><div class="h2"><span id="kv" class="cy">0</span> kV</div><div class="lead mut" style="margin-top:8px">entre 30 y 150 kV de diferencia de potencial</div></div>
+</section>
+
+<!-- 6 enfocar -->
+<section class="s" data-who="J. Gabriel Franco" data-anim="focus" data-src="Animación: lentes magnéticas y bobinas de deflexión.">
+  <canvas class="bg" width="1600" height="900"></canvas>
+  <div class="box" style="top:200px;width:620px">
+    <div class="step" data-at="0.2">3 / 3</div>
+    <div class="huge" data-at="0.5" style="font-size:150px">Enfocar</div>
+    <div class="lead" data-at="3" style="margin-top:26px">Bobinas magnéticas concentran el haz en un punto de <b class="cy">menos de 1 mm</b></div>
+    <div class="lead" data-at="8" style="margin-top:20px">Otras bobinas lo mueven sin tocar nada</div>
+  </div>
+</section>
+
+<!-- 7 vacio pregunta -->
+<section class="s" data-who="J. Gabriel Franco" data-anim="vacuum" data-q="6.5" data-src="Animación: dispersión de electrones con aire frente a vacío.">
+  <div class="ans"><canvas class="bg" width="1600" height="900"></canvas>
+    <div style="position:absolute;left:100px;top:160px;width:620px"><div class="h2 hot">Con aire</div><div class="lead" style="margin-top:12px">Los electrones chocan con las moléculas y se dispersan</div></div>
+    <div style="position:absolute;left:880px;top:160px;width:620px"><div class="h2 cy">En vacío</div><div class="lead" style="margin-top:12px">Llegan enteros a la pieza · ≈ 10⁻⁴ mbar</div></div>
+  </div>
+  <div class="q"><div class="kick">Pregunta</div><div class="h1">¿Por qué tiene que ser en vacío?</div><div class="ring"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="68" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="8"/><circle class="rg" cx="75" cy="75" r="68" fill="none" stroke="#46D6FF" stroke-width="8" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="0"/></svg><b class="rn">6</b></div></div>
+</section>
+
+<!-- 8 video cañón -->
+<section class="s" data-who="J. Gabriel Franco" data-src="Video: Corpus Christi Army Depot, DVIDS (dominio público).">
+  <video class="bg" src="assets/v_canon.mp4" muted playsinline preload="auto"></video><div class="shadeB"></div>
+  <div style="position:absolute;left:100px;bottom:110px;width:1100px">
+    <div class="kick" data-at="0.3">Así se ve en la industria</div>
+    <div class="h1" data-at="0.8" style="margin-top:14px">El cañón de electrones</div>
+    <div class="lead" data-at="4" style="margin-top:18px">Columna de alto voltaje montada sobre la cámara de vacío</div>
+  </div>
+</section>
+
+<!-- 9 keyhole -->
+<section class="s" data-who="J. Gabriel Franco" data-anim="keyhole" data-src="Animación: soldadura en modo keyhole, corte transversal.">
+  <canvas class="bg" width="1600" height="900"></canvas>
+  <div class="box" style="top:150px;width:600px">
+    <div class="huge" data-at="0.3" style="font-size:130px">Keyhole</div>
+    <div class="h2 hot" data-at="2.5" style="margin-top:20px">≈ 10⁷ W/cm²</div>
+    <div class="lead" data-at="5.5" style="margin-top:22px">El metal se vaporiza y el haz abre un túnel</div>
+    <div class="lead" data-at="9.5" style="margin-top:18px">El metal fundido lo cierra detrás</div>
+  </div>
+</section>
+
+<!-- 10 video cordón -->
+<section class="s" data-who="J. Gabriel Franco" data-src="Video: Corpus Christi Army Depot, DVIDS (dominio público).">
+  <video class="bg" src="assets/v_cordon.mp4" muted playsinline preload="auto"></video><div class="shade"></div>
+  <div class="box" style="top:260px">
+    <div class="h1" data-at="0.4">Una pasada.<br><span class="cy">Un cordón.</span></div>
+    <div class="lead" data-at="4" style="margin-top:28px">La pieza gira bajo el haz y la unión se cierra en una vuelta</div>
+    <div data-at="11" style="margin-top:44px"><span class="chip">Sigue Juan Fernando →</span></div>
+  </div>
+</section>
+
+<!-- 11 profundidad -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-src="Foto: L. Zobač, Wikimedia Commons (CC0).">
+  <img src="assets/cordon_profundo.jpg" alt="" style="position:absolute;left:100px;top:180px;width:820px;border-radius:18px;filter:grayscale(.2)" data-at="0.2">
+  <div style="position:absolute;left:1000px;top:170px;width:520px">
+    <div class="kick" data-at="0.4">Corte de un cordón real</div>
+    <div class="huge cy" data-at="1" style="font-size:150px;margin-top:10px">26 mm</div><div class="lead" data-at="1.5">de profundidad</div>
+    <div class="huge" data-at="4" style="font-size:150px;margin-top:20px">0,8 mm</div><div class="lead" data-at="4.5">de ancho</div>
+    <div data-at="8" style="margin-top:34px"><span class="chip cyb">Relación ≈ 30 : 1</span></div>
+  </div>
+</section>
+
+<!-- 12 pasadas pregunta -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-anim="passes" data-q="6.5" data-src="Animación comparativa: soldadura por arco en bisel frente a EBW a tope.">
+  <div class="ans"><canvas class="bg" width="1600" height="900"></canvas>
+    <div style="position:absolute;left:150px;top:150px;width:600px"><div class="h2 hot">Arco</div><div class="lead" style="margin-top:10px">Bisel y varias pasadas · <b id="pcount">0</b></div></div>
+    <div style="position:absolute;left:900px;top:150px;width:600px"><div class="h2 cy">EBW</div><div class="lead" style="margin-top:10px">Junta a tope · 1 pasada</div></div>
+  </div>
+  <div class="q"><div class="kick">Pregunta</div><div class="h1">¿Cuántas pasadas para unir una placa gruesa?</div><div class="ring"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="68" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="8"/><circle class="rg" cx="75" cy="75" r="68" fill="none" stroke="#46D6FF" stroke-width="8" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="0"/></svg><b class="rn">6</b></div></div>
+</section>
+
+<!-- 13 zonas -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-anim="zones" data-src="Esquema: L. Zobač, Wikimedia Commons (CC0).">
+  <div style="position:absolute;left:100px;top:170px;width:760px;height:500px;border-radius:22px;background:#F2F3F5;overflow:hidden" data-at="0.2"><img src="assets/zonas_fundidas.jpg" alt="" style="width:100%;height:100%;object-fit:contain"><div id="zmark" style="position:absolute;top:0;bottom:0;width:110px;border-radius:14px;background:rgba(70,214,255,.25);border:3px solid var(--cy);transition:left .6s"></div></div>
+  <div style="position:absolute;left:940px;top:170px;width:560px">
+    <div class="h2" data-at="0.5">Más potencia,<br><span class="cy">más profundo</span></div>
+    <div class="lead" data-at="2" style="margin-top:20px">De fundir la superficie a atravesar la pieza</div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:40px">
+      <span class="chip" data-at="7">Zona afectada mínima</span>
+      <span class="chip" data-at="9">Poca distorsión</span>
+      <span class="chip" data-at="11">Sin material de aporte</span>
+    </div>
+  </div>
+</section>
+
+<!-- 14 metales -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-src="Metales soldables por EBW según literatura técnica.">
+  <div class="box" style="top:150px;width:1400px"><div class="h2" data-at="0.2">Los metales “difíciles”</div><div class="lead mut" data-at="1" style="margin-top:12px">El vacío protege a los reactivos y la energía alcanza para los refractarios</div></div>
+  <div style="position:absolute;left:100px;top:380px;display:flex;gap:22px;flex-wrap:wrap;width:1400px">
+    <div class="tile" data-at="2"><b class="cy">Ti</b><span>Titanio</span></div>
+    <div class="tile" data-at="2.6"><b>Ni</b><span>Superaleaciones</span></div>
+    <div class="tile" data-at="3.2"><b class="hot">Cu</b><span>Cobre</span></div>
+    <div class="tile" data-at="3.8"><b>Al</b><span>Aluminio</span></div>
+    <div class="tile" data-at="4.4"><b class="amb">W</b><span>Tungsteno</span></div>
+    <div class="tile" data-at="5"><b>Mo</b><span>Molibdeno</span></div>
+    <div class="tile" data-at="5.6"><b>Ta</b><span>Tántalo</span></div>
+    <div class="tile" data-at="6.2"><b class="cy">Zr</b><span>Circonio</span></div>
+  </div>
+  <div style="position:absolute;left:100px;top:600px" data-at="9"><span class="chip cyb" style="font-size:30px">+ uniones disímiles: cobre con acero</span></div>
+</section>
+
+<!-- 15 aplicaciones -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-anim="apps" data-src="Aplicaciones industriales de la soldadura por haz de electrones.">
+  <div class="box" style="top:150px;width:1400px"><div class="h2" data-at="0.2">¿Dónde se usa?</div></div>
+  <div class="apps">
+    <div class="app" data-at="0.6"><svg viewBox="0 0 100 100" fill="none" stroke="#46D6FF" stroke-width="4"><circle cx="50" cy="50" r="12"/><path d="M50 38 C45 20 60 12 66 18 M62 50 C80 45 88 60 82 66 M50 62 C55 80 40 88 34 82 M38 50 C20 55 12 40 18 34"/></svg><h3>Aeroespacial</h3><p>Turbinas y motores de titanio y superaleaciones</p></div>
+    <div class="app" data-at="1"><svg viewBox="0 0 100 100" fill="none" stroke="#FFC24A" stroke-width="4"><circle cx="50" cy="50" r="6" fill="#FFC24A"/><ellipse cx="50" cy="50" rx="40" ry="14"/><ellipse cx="50" cy="50" rx="40" ry="14" transform="rotate(60 50 50)"/><ellipse cx="50" cy="50" rx="40" ry="14" transform="rotate(120 50 50)"/></svg><h3>Nuclear</h3><p>Componentes de reactores y combustible</p></div>
+    <div class="app" data-at="1.4"><svg viewBox="0 0 100 100" fill="none" stroke="#FF7A2E" stroke-width="4"><circle cx="50" cy="50" r="22"/><circle cx="50" cy="50" r="8"/><path d="M50 18v10M50 72v10M18 50h10M72 50h10M27 27l7 7M66 66l7 7M27 73l7-7M66 34l7-7"/></svg><h3>Automotriz</h3><p>Engranajes y piezas de transmisión</p></div>
+    <div class="app" data-at="1.8"><svg viewBox="0 0 100 100" fill="none" stroke="#5BE39A" stroke-width="4"><path d="M40 14c-8 0-12 8-8 14l10 18v40h16V46l10-18c4-6 0-14-8-14-5 0-8 4-10 6-2-2-5-6-10-6z"/></svg><h3>Médica</h3><p>Implantes y dispositivos de titanio</p></div>
+  </div>
+</section>
+
+<!-- 16 cámara y desventajas -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-src="Video: Corpus Christi Army Depot, DVIDS (dominio público).">
+  <video class="bg" src="assets/v_camara.mp4" muted loop playsinline preload="auto"></video><div class="shade"></div>
+  <div class="box" style="top:170px">
+    <div class="kick hot" data-at="0.3">El costo de tanta precisión</div>
+    <div class="h1" data-at="0.7" style="margin-top:14px">Todo pasa dentro de una cámara</div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:40px;align-items:flex-start">
+      <span class="chip hotb" data-at="3.5">Equipo muy costoso</span>
+      <span class="chip hotb" data-at="5.5">Tamaño de pieza limitado</span>
+      <span class="chip hotb" data-at="7.5">Minutos para hacer vacío</span>
+      <span class="chip hotb" data-at="9.5">Junta muy precisa · ≈ 0,1 mm</span>
+    </div>
+  </div>
+</section>
+
+<!-- 17 rayos X pregunta -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-anim="xray" data-q="6.5" data-src="Animación: radiación de frenado (bremsstrahlung) y blindaje.">
+  <div class="ans"><canvas class="bg" width="1600" height="900"></canvas>
+    <div style="position:absolute;left:100px;top:170px;width:640px"><div class="huge amb" style="font-size:150px">Rayos X</div><div class="lead" style="margin-top:20px">Al frenar en el metal, el electrón emite radiación</div><div style="margin-top:30px"><span class="chip">Por eso la cámara lleva blindaje de plomo</span></div></div>
+  </div>
+  <div class="q"><div class="kick">Pregunta</div><div class="h1">¿Qué más produce un electrón cuando frena de golpe?</div><div class="ring"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="68" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="8"/><circle class="rg" cx="75" cy="75" r="68" fill="none" stroke="#46D6FF" stroke-width="8" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="0"/></svg><b class="rn">6</b></div></div>
+</section>
+
+<!-- 18 comparación -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-src="Comparación cualitativa según literatura técnica de soldadura.">
+  <div class="box" style="top:140px;width:1400px"><div class="h2" data-at="0.2">EBW frente a láser y TIG</div></div>
+  <div style="position:absolute;left:100px;right:100px;top:270px">
+    <table class="cmp">
+      <tr data-at="0.6"><th></th><th class="e">EBW</th><th>Láser</th><th>TIG</th></tr>
+      <tr data-at="1.6"><td>Profundidad por pasada</td><td class="e">Muy alta</td><td>Alta</td><td>Baja</td></tr>
+      <tr data-at="3.6"><td>Ambiente</td><td class="e">Vacío</td><td>Aire con gas</td><td>Gas inerte</td></tr>
+      <tr data-at="5.6"><td>Cobre y aluminio</td><td class="e">Sin problema</td><td>Difícil: reflejan</td><td>Bien</td></tr>
+      <tr data-at="7.6"><td>Velocidad</td><td class="e">Alta</td><td>Alta</td><td>Baja</td></tr>
+      <tr data-at="9.6"><td>Costo del equipo</td><td class="e">Muy alto</td><td>Alto</td><td>Bajo</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 19 futuro -->
+<section class="s" data-who="Juan Fernando Sarmiento" data-anim="ebm" data-src="Animación: fusión de lecho de polvo por haz de electrones (EBM).">
+  <canvas class="bg" width="1600" height="900"></canvas>
+  <div class="box" style="top:170px;width:640px">
+    <div class="kick" data-at="0.2">Futuro</div>
+    <div class="h1" data-at="0.6" style="margin-top:14px">Imprimir metal con electrones</div>
+    <div class="lead" data-at="4" style="margin-top:24px">Fusión de lecho de polvo, capa por capa (EBM)</div>
+    <div class="lead" data-at="8.5" style="margin-top:18px">Piezas de titanio para aviones e implantes</div>
+  </div>
+</section>
+
+<!-- 20 cierre -->
+<section class="s" data-who="J. Gabriel Franco · Juan Fernando Sarmiento" data-src="Video: Corpus Christi Army Depot, DVIDS (dominio público).">
+  <video class="bg" src="assets/v_detalle.mp4" muted loop playsinline preload="auto"></video><div class="shade"></div>
+  <div class="box" style="top:220px">
+    <div class="h1" data-at="0.4">Entonces…<br>¿soldarían con <span class="cy">electrones</span>?</div>
+    <div class="lead" data-at="5" style="margin-top:36px">Gracias · J. Gabriel Franco · Juan Fernando Sarmiento</div>
+    <div data-at="8" style="margin-top:40px"><span class="chip cyb" style="font-size:30px">¿Preguntas?</span></div>
+  </div>
+</section>
+
+<div class="src" id="src"></div>
+<div id="bar"></div>
+<div id="num"></div>
+<div id="pz">❚❚ En pausa · espacio para seguir</div>
+<div id="start">
+  <img src="assets/logo_uis_blanco.png" alt="UIS" style="height:80px">
+  <h1>Soldadura por haz de electrones</h1>
+  <p>20 escenas · 15 segundos cada una · 5 minutos<br>Espacio: pausa · ← →: cambiar escena · P: pantalla completa</p>
+  <div class="row"><button id="go">▶ Iniciar</button><button id="goF" class="ghost">Iniciar en pantalla completa</button></div>
+</div>
+</div></div>
+
+<script>
+(()=>{
+const DUR=15;
+const stage=document.getElementById('stage');
+function fit(){const s=Math.min(innerWidth/1600,innerHeight/900);stage.style.transform=`translate(-50%,-50%) scale(${s})`;}
+addEventListener('resize',fit);fit();
+const S=[...document.querySelectorAll('.s')];
+const bar=document.getElementById('bar');S.forEach(()=>{const sp=document.createElement('span');sp.appendChild(document.createElement('b'));bar.appendChild(sp);});
+const fills=[...bar.querySelectorAll('b')];
+let cur=-1,t0=0,paused=true,pauseT=0,started=false;
+const now=()=>performance.now()/1000;
+function elapsed(){return paused?pauseT:now()-t0;}
+function go(n,keep){n=Math.max(0,Math.min(S.length-1,n));if(n===cur&&!keep)return;
+  if(cur>=0){S[cur].classList.remove('on');S[cur].querySelectorAll('video').forEach(v=>v.pause());}
+  cur=n;const s=S[cur];s.classList.add('on');t0=now();pauseT=0;
+  s.querySelectorAll('[data-at]').forEach(e=>e.classList.remove('go'));
+  const q=s.querySelector('.q');if(q){q.classList.remove('hide');s.querySelector('.ans').classList.remove('show');}
+  s.querySelectorAll('video').forEach(v=>{v.currentTime=0;if(!paused)v.play().catch(()=>{});});
+  document.getElementById('whoT').textContent=s.dataset.who||'';
+  document.getElementById('src').textContent=s.dataset.src||'';
+  document.getElementById('num').textContent=String(cur+1).padStart(2,'0')+' / '+S.length;
+  fills.forEach((f,i)=>f.style.width=i<cur?'100%':'0%');
+  const A=ANIM[s.dataset.anim];if(A&&A.reset)A.reset();
+}
+function setPause(p){if(p===paused)return;if(p){pauseT=elapsed();paused=true;}else{t0=now()-pauseT;paused=false;}
+  document.body.classList.toggle('paused',paused);S[cur]&&S[cur].querySelectorAll('video').forEach(v=>paused?v.pause():v.play().catch(()=>{}));}
+function start(fs){if(fs)document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
+  document.getElementById('start').style.display='none';started=true;paused=true;go(0,true);setPause(false);}
+document.getElementById('go').onclick=()=>start(false);
+document.getElementById('goF').onclick=()=>start(true);
+addEventListener('keydown',e=>{
+  if(!started){if(e.key===' '||e.key==='Enter'){e.preventDefault();start(false);}return;}
+  if(e.key===' '){e.preventDefault();setPause(!paused);}
+  else if(['ArrowRight','PageDown'].includes(e.key)){e.preventDefault();go(cur+1);}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1);}
+  else if(e.key==='Home')go(0);
+  else if(e.key==='p'||e.key==='P'||e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});}
+});
+stage.addEventListener('click',e=>{if(!started||e.target.closest('button'))return;const r=stage.getBoundingClientRect();const x=(e.clientX-r.left)/r.width;if(x>.7)go(cur+1);else if(x<.3)go(cur-1);else setPause(!paused);});
+let tx=null;stage.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
+stage.addEventListener('touchend',e=>{if(tx==null||!started)return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50)go(cur+(dx<0?1:-1));tx=null;});
+let idle;addEventListener('mousemove',()=>{document.body.classList.remove('idle');clearTimeout(idle);idle=setTimeout(()=>document.body.classList.add('idle'),2000);});
+
+/* utilidades de dibujo */
+const R=(a,b)=>a+Math.random()*(b-a);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const ease=x=>x<0?0:x>1?1:1-Math.pow(1-x,3);
+function glowLine(c,x1,y1,x2,y2,w,col,blur){c.save();c.strokeStyle=col;c.lineWidth=w;c.shadowColor=col;c.shadowBlur=blur;c.lineCap='round';c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();c.restore();}
+function dot(c,x,y,r,col,blur){c.save();c.fillStyle=col;c.shadowColor=col;c.shadowBlur=blur||0;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();}
+function bgGrad(c,W,H){const g=c.createRadialGradient(W*.72,H*.5,40,W*.72,H*.5,W*.75);g.addColorStop(0,'#0D1A2A');g.addColorStop(1,'#06080C');c.fillStyle=g;c.fillRect(0,0,W,H);}
+function plate(c,x,y,w,h,col){const g=c.createLinearGradient(x,y,x,y+h);g.addColorStop(0,col||'#6E7A86');g.addColorStop(1,'#2C333B');c.fillStyle=g;c.fillRect(x,y,w,h);}
+
+const ANIM={
+ speed:{reset(){this.p=Array.from({length:140},()=>({x:R(0,1600),y:R(0,900),v:R(.6,1)}));},
+  draw(c,t){bgGrad(c,1600,900);const k=ease(t/4.5);this.p.forEach(p=>{p.x+=(6+60*k)*p.v;if(p.x>1700){p.x=-100;p.y=R(0,900);}const L=20+300*k*p.v;glowLine(c,p.x-L,p.y,p.x,p.y,2,'rgba(70,214,255,.75)',12);});
+   const v=Math.round(190000*ease((t-1)/4));const el=document.getElementById('spd');if(el)el.textContent=v.toLocaleString('es-CO').replace(/\./g,' ');}},
+ heat:{reset(){this.e=[];for(let k=0;k<40;k++)this.e.push({x:1150-110+R(0,220),y:500-R(0,420),vx:R(-.6,.6),vy:R(-1.5,-3)});},draw(c,t){bgGrad(c,1600,900);const cx=1150,cy=520;const T=clamp(t/5,0,1);
+   const col=`rgb(${Math.round(120+135*T)},${Math.round(30+200*T*T)},${Math.round(20+200*T*T*T)})`;
+   c.save();c.strokeStyle=col;c.lineWidth=10;c.shadowColor=col;c.shadowBlur=20+60*T;c.beginPath();c.moveTo(cx-140,cy+120);
+   for(let i=0;i<=8;i++){c.lineTo(cx-120+i*30,cy+(i%2?-30:30));}c.lineTo(cx+140,cy+120);c.stroke();c.restore();
+   c.fillStyle='#3A424C';c.fillRect(cx-160,cy+120,40,160);c.fillRect(cx+120,cy+120,40,160);
+   if(T>.35&&Math.random()<T*1.4)for(let k=0;k<3;k++)this.e.push({x:cx-110+R(0,220),y:cy-20,vx:R(-.6,.6),vy:R(-1.5,-3)});
+   this.e.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy*=1.01;});this.e=this.e.filter(p=>p.y>-20);
+   this.e.forEach(p=>dot(c,p.x,p.y,4,'#46D6FF',14));
+   c.fillStyle='rgba(255,255,255,.6)';c.font='600 22px Inter';c.textAlign='center';c.fillText('Cátodo',cx,cy+320);
+   c.textAlign='left';}},
+ accel:{reset(){this.e=[];for(let x=770;x<1650;x+=18)this.e.push({x,v:1});},draw(c,t){bgGrad(c,1600,900);const y=470,x0=760,xa=1330;
+   plate(c,x0-20,y-90,30,180,'#8A6A5A');dot(c,x0-5,y,16,'#FF9A5A',30);
+   plate(c,xa,y-180,26,150,'#8E99A5');plate(c,xa,y+30,26,150,'#8E99A5');
+   c.fillStyle='rgba(255,255,255,.55)';c.font='600 22px Inter';c.fillText('Cátodo (−)',x0-60,y+140);c.fillText('Ánodo (+)',xa-40,y+220);
+   const kv=Math.round(150*ease((t-1.5)/5));const el=document.getElementById('kv');if(el)el.textContent=kv;
+   for(let k=0;k<2;k++)this.e.push({x:x0+10+k*4,v:1});
+   this.e.forEach(p=>{const f=(p.x-x0)/(xa-x0);p.v=1+ (kv/150)*22*clamp(f,0,1.5)+kv/40;p.x+=p.v;});this.e=this.e.filter(p=>p.x<1650);
+   this.e.forEach(p=>{const L=Math.min(80,p.v*3);glowLine(c,Math.max(x0,p.x-L),y,p.x,y,4,'#46D6FF',16);});}},
+ focus:{draw(c,t){bgGrad(c,1600,900);const cx=1150,top=60,lens=380,spot=760;const k=ease((t-1)/3);
+   const half=110-90*k;
+   c.save();c.globalAlpha=.9;
+   for(let i=-6;i<=6;i++){const xs=cx+i*14;const xl=cx+i*(half/6)*1.0;const xe=cx+i*((half/6)*(1-k)*0.9+0.05);
+     const off=t>8?Math.sin((t-8)*2.2)*160:0;glowLine(c,xs,top,xl,lens,2.5,'rgba(70,214,255,.8)',10);glowLine(c,xl,lens,xe+off,spot,2.5,'rgba(70,214,255,.8)',12);}
+   c.restore();
+   [lens-40,lens+10].forEach(yy=>{c.save();c.strokeStyle='#B07A3A';c.lineWidth=14;c.beginPath();c.ellipse(cx,yy,170,26,0,0,7);c.stroke();c.restore();});
+   c.fillStyle='rgba(255,255,255,.55)';c.font='600 22px Inter';c.fillText('Lente magnética',cx+190,lens-10);
+   const sx=cx+(t>8?Math.sin((t-8)*2.2)*160:0);
+   plate(c,cx-420,spot,840,90);dot(c,sx,spot,10+18*k,'#FFF4D6',60*k);dot(c,sx,spot,6,'#FFFFFF',20);
+   if(t>7.5){c.save();c.strokeStyle='#C9A24A';c.lineWidth=10;c.beginPath();c.ellipse(cx,lens+90,90,16,0,0,7);c.stroke();c.restore();c.fillStyle='rgba(255,255,255,.55)';c.fillText('Bobina de deflexión',cx+110,lens+98);}}},
+ vacuum:{reset(){this.a=[];this.b=[];for(let x=110;x<720;x+=14)this.a.push({x,y:580+R(-90,90),vx:R(2,6),vy:R(-3,3)});for(let x=890;x<1460;x+=12)this.b.push({x,y:580+R(-4,4)});},draw(c,t){bgGrad(c,1600,900);
+   c.fillStyle='rgba(255,122,46,.05)';c.fillRect(60,330,700,500);c.fillStyle='rgba(70,214,255,.05)';c.fillRect(840,330,700,500);
+   for(let i=0;i<3;i++){this.a.push({x:110,y:580+R(-6,6),vx:6,vy:0});this.b.push({x:890,y:580+R(-4,4)});}
+   this.a.forEach(p=>{if(Math.random()<.06){const an=R(-1.4,1.4);p.vx=6*Math.cos(an);p.vy=6*Math.sin(an);}p.x+=p.vx;p.y+=p.vy;});
+   this.a=this.a.filter(p=>p.x<740&&p.x>60&&p.y>330&&p.y<830);this.b.forEach(p=>p.x+=7);this.b=this.b.filter(p=>p.x<1460);
+   for(let i=0;i<40;i++){const gx=80+((i*97)%660),gy=350+((i*61)%460);dot(c,gx,gy,5,'rgba(255,255,255,.18)');}
+   this.a.forEach(p=>dot(c,p.x,p.y,3.5,'#FF9A5A',10));this.b.forEach(p=>dot(c,p.x,p.y,3.5,'#46D6FF',12));
+   plate(c,1460,450,40,260);plate(c,700,450,40,260);
+   dot(c,1460,580,14,'#FFF4D6',50);}},
+ keyhole:{draw(c,t){bgGrad(c,1600,900);const top=360,bot=820,L=760,Rr=1540,bx=1180;
+   const depth=ease((t-1)/4.5)*(bot-top-30);
+   plate(c,L,top,Rr-L,bot-top,'#5E6A76');
+   const shift=Math.max(0,t-4)*22;
+   c.fillStyle='rgba(200,190,175,.35)';c.fillRect(L,top,Math.max(0,bx-L-6),Math.min(depth,bot-top));
+   const g=c.createLinearGradient(bx-40,0,bx+40,0);g.addColorStop(0,'rgba(255,122,46,0)');g.addColorStop(.5,'rgba(255,122,46,.9)');g.addColorStop(1,'rgba(255,122,46,0)');
+   c.fillStyle=g;c.beginPath();c.moveTo(bx-38,top);c.quadraticCurveTo(bx-22,top+depth*.6,bx-6,top+depth+8);c.lineTo(bx+6,top+depth+8);c.quadraticCurveTo(bx+22,top+depth*.6,bx+38,top);c.fill();
+   c.fillStyle='#06080C';c.beginPath();c.moveTo(bx-12,top);c.quadraticCurveTo(bx-6,top+depth*.7,bx-2,top+depth);c.lineTo(bx+2,top+depth);c.quadraticCurveTo(bx+6,top+depth*.7,bx+12,top);c.fill();
+   for(let k=0;k<6;k++){const yy=top-R(0,40);dot(c,bx+R(-30,30),yy,R(2,4),'rgba(255,220,170,.8)',8);}
+   glowLine(c,bx,0,bx,top+depth,10,'rgba(70,214,255,.95)',40);glowLine(c,bx,0,bx,top+depth,3,'#E8FBFF',10);
+   c.save();c.setLineDash([6,8]);c.strokeStyle='rgba(255,255,255,.25)';c.beginPath();c.moveTo(bx,top);c.lineTo(bx,bot);c.stroke();c.restore();
+   c.fillStyle='rgba(255,255,255,.6)';c.font='600 20px Inter';c.fillText('Cavidad de vapor',bx+30,top+depth*.5);c.fillText('Cordón solidificado',L+20,top+40);c.fillText('Baño fundido',bx-180,top+depth*.85);c.fillText('Pieza',Rr-90,bot-20);}},
+ passes:{draw(c,t){bgGrad(c,1600,900);const tt=t-7;const y0=380,h=360;
+   const Lx=150,W1=600;plate(c,Lx,y0,W1/2-70,h);plate(c,Lx+W1/2+70,y0,W1/2-70,h);
+   c.fillStyle='#06080C';c.beginPath();c.moveTo(Lx+W1/2-70,y0);c.lineTo(Lx+W1/2-10,y0+h);c.lineTo(Lx+W1/2+10,y0+h);c.lineTo(Lx+W1/2+70,y0);c.fill();
+   const n=Math.min(14,Math.floor(Math.max(0,tt)*2.2));const el=document.getElementById('pcount');if(el)el.textContent=n+(n>=14?'+':'');
+   for(let i=0;i<n;i++){const yy=y0+h-13-i*(h/14);const hw=10+((y0+h-yy)/h)*60;
+     c.fillStyle=i%2?'#E07A3A':'#C9652B';c.beginPath();c.ellipse(Lx+W1/2,yy,hw*.95,h/28,0,0,7);c.fill();}
+   const Rx=900;plate(c,Rx,y0,W1/2-2,h);plate(c,Rx+W1/2+2,y0,W1/2-2,h);
+   const k=ease((tt-.5)/1.5);c.fillStyle='rgba(255,140,60,.95)';c.fillRect(Rx+W1/2-6,y0,12,h*k);
+   if(tt>0&&tt<2.2)glowLine(c,Rx+W1/2,0,Rx+W1/2,y0+h*k,6,'rgba(70,214,255,.95)',30);}},
+ zones:{draw(c,t){const m=document.getElementById('zmark');if(!m)return;const i=Math.min(5,Math.floor(Math.max(0,t-2)/0.9));m.style.left=(24+i*121)+'px';}},
+ apps:{draw(c,t){const cards=S[cur].querySelectorAll('.app');const i=Math.floor(Math.max(0,t-3)/3)%4;cards.forEach((e,k)=>e.classList.toggle('hi',t>3&&k===i));}},
+ xray:{reset(){this.w=[];},draw(c,t){bgGrad(c,1600,900);const tt=t-7;const hx=1150,hy=560;
+   plate(c,hx-200,hy,400,110);glowLine(c,hx,0,hx,hy,8,'rgba(70,214,255,.9)',36);dot(c,hx,hy,16,'#FFF4D6',50);
+   if(tt>0&&Math.random()<.5)this.w.push({a:R(-2.9,-0.25),r:10});
+   this.w.forEach(w=>w.r+=7);this.w=this.w.filter(w=>w.r<520);
+   c.save();c.strokeStyle='rgba(255,194,74,.85)';c.lineWidth=3;c.shadowColor='#FFC24A';c.shadowBlur=10;
+   this.w.forEach(w=>{c.beginPath();for(let s=0;s<60;s+=3){const rr=w.r+s;const off=Math.sin(s*.8)*6;const x=hx+Math.cos(w.a)*rr-Math.sin(w.a)*off,y=hy+Math.sin(w.a)*rr+Math.cos(w.a)*off;s?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();});c.restore();
+   if(tt>3){c.fillStyle='rgba(120,130,140,.9)';c.fillRect(1480,150,30,620);c.fillRect(820,150,30,620);c.fillStyle='rgba(255,255,255,.6)';c.font='600 20px Inter';c.fillText('Plomo',1430,140);}}},
+ ebm:{reset(){this.layers=0;},draw(c,t){bgGrad(c,1600,900);const bx=820,by=700,bw=640;
+   c.fillStyle='#3A3F45';c.fillRect(bx-20,by,bw+40,150);
+   const nl=Math.min(18,Math.floor(t*1.3));
+   for(let i=0;i<nl;i++){const y=by-(i+1)*14;const w=220-(i>8?Math.min(80,(i-8)*14):0);const x=bx+bw/2-w/2;c.fillStyle=i===nl-1?'#FFB070':'#9AA5B1';c.fillRect(x,y,w,12);}
+   c.fillStyle='rgba(180,180,170,.35)';c.fillRect(bx,by-nl*14-6,bw,8);
+   const ly=by-nl*14-2;const sx=bx+bw/2-110+((t*900)%220);
+   glowLine(c,bx+bw/2,0,sx,ly,5,'rgba(70,214,255,.95)',30);dot(c,sx,ly,10,'#FFF4D6',40);
+   c.fillStyle='rgba(255,255,255,.55)';c.font='600 20px Inter';c.fillText('Capa '+nl,bx+bw+30,ly+6);}}
+};
+
+/* preguntas: cuenta regresiva */
+function qTick(s,t){const qa=+s.dataset.q;if(!qa)return;const q=s.querySelector('.q');const rem=Math.max(0,qa-t);
+  s.querySelector('.rn').textContent=Math.ceil(rem);s.querySelector('.rg').setAttribute('stroke-dashoffset',427*(1-rem/qa));
+  const rev=t>=qa;q.classList.toggle('hide',rev);s.querySelector('.ans').classList.toggle('show',rev);}
+
+function loop(){if(cur>=0){const s=S[cur];const t=elapsed();
+  s.querySelectorAll('[data-at]').forEach(e=>e.classList.toggle('go',t>=+e.dataset.at));
+  fills[cur].style.width=Math.min(100,t/DUR*100)+'%';
+  qTick(s,t);
+  const A=ANIM[s.dataset.anim];if(A){const cv=s.querySelector('canvas');const tt=s.dataset.q?t:t;
+    if(cv){if(!paused||!A._drawn){A.draw(cv.getContext('2d'),tt);A._drawn=true;}}else A.draw(null,tt);}
+  if(!paused&&t>=DUR){if(cur<S.length-1)go(cur+1);else setPause(true);}
+ }requestAnimationFrame(loop);}
+Object.values(ANIM).forEach(a=>a.reset&&a.reset());
+const h=parseInt(location.hash.slice(1));if(h){started=true;document.getElementById('start').style.display='none';go(h-1,true);setPause(false);
+  const at=new URLSearchParams(location.search).get('at');if(at){document.body.classList.add('static');t0=now()-(+at);}}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
